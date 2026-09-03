@@ -90,10 +90,34 @@
         <div class="partner-stat"><b id="dashBalance">0 kr</b><span>Til gode</span></div>
       </div>
 
+      <div id="payoutFormWrap" style="display:none; margin-top:26px;">
+        <h4 class="checkout-subheading" style="margin-top:0;">Be om utbetaling</h4>
+        <div class="payment-options">
+          <label class="payment-option">
+            <input type="radio" name="payoutMethod" value="vipps" checked>
+            <span>Vipps</span>
+          </label>
+          <label class="payment-option">
+            <input type="radio" name="payoutMethod" value="bank">
+            <span>Bankkonto</span>
+          </label>
+        </div>
+        <div class="full-row" style="margin-top:14px;">
+          <label for="payoutDetails" id="payoutDetailsLabel">Vipps-/telefonnummer</label>
+          <input id="payoutDetails" type="text" placeholder="900 00 000">
+        </div>
+        <button type="button" class="btn btn-primary checkout-submit" id="payoutSubmitBtn">Send utbetalingsforespørsel</button>
+      </div>
+
       <button type="button" class="btn btn-primary checkout-submit" id="payoutBtn" style="margin-top:26px;">Be om utbetaling</button>
       <p class="referral-note" id="payoutMsg" style="display:none;"></p>
 
-      <button type="button" class="btn btn-ghost" id="logoutBtn" style="width:100%; margin-top:12px;">Logg ut</button>
+      <div id="payoutHistoryWrap" style="margin-top:36px; display:none;">
+        <h4 class="checkout-subheading" style="margin-top:0;">Tidligere forespørsler</h4>
+        <div id="payoutHistoryList"></div>
+      </div>
+
+      <button type="button" class="btn btn-ghost" id="logoutBtn" style="width:100%; margin-top:24px;">Logg ut</button>
     </div>
   </div>
 </section>

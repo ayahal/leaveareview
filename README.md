@@ -136,13 +136,23 @@ Etter dette:
   (`COMMISSION_RATE` i `stripe-webhook.js` - satt til 20% som
   plassholder, endre til riktig sats der)
 
+**Nytt: partneren oppgir selv Vipps-/kontonummer.** Kjør også
+`supabase-migration-payout-details.sql` i SQL Editor (samme fremgangsmåte
+som over) - dette legger til to kolonner i `payouts`-tabellen
+(`payment_method`, `payment_details`), slik at "Be om utbetaling" ber om
+Vipps- eller kontonummer FØR forespørselen sendes. Dere slipper dermed å
+kontakte partneren for denne infoen - den ligger med i e-postvarselet og
+i historikken partneren ser i dashbordet.
+
 **Viktig om utbetaling:** "Be om utbetaling" overfører IKKE penger
 automatisk - den lagrer en forespørsel i `payouts`-tabellen og sender dere
 en e-post. Dere må fortsatt betale ut provisjonen manuelt (Vipps/bank) og
 selv markere raden som betalt i Supabase (under **Table Editor →
-payouts**, sett `status` til `paid`). Automatisk utbetaling er mulig med
-**Stripe Connect**, men krever at hver partner onboardes med egen konto
-der - en god del mer arbeid enn dette oppsettet.
+payouts**, sett `status` til `paid`). Gjør dere det, ser partneren
+automatisk "Betalt" i stedet for "Venter" på sin egen historikk-liste i
+dashbordet - dere trenger ikke si ifra separat. Helautomatisk utbetaling
+er mulig med **Stripe Connect**, men krever at hver partner onboardes med
+egen konto der - en god del mer arbeid enn dette oppsettet.
 
 ### 10. Det som IKKE er satt opp ennå, men som du trenger før dere går live
 - **Bestillingslagring**: selve varebestillingen (hvilke kort, farge,

@@ -26,6 +26,14 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Du må være logget inn.' });
     }
 
+    const { paymentMethod, paymentDetails } = req.body;
+    if (!paymentMethod || !paymentDetails) {
+      return res.status(400).json({ error: 'Velg betalingsmåte og fyll inn Vipps-/kontonummer.' });
+    }
+    if (paymentMethod !== 'vipps' && paymentMethod !== 'bank') {
+      return res.status(400).json({ error: 'Ugyldig betalingsmåte.' });
+    }
+
     const { data: partner, error: findError } = await supabase
       .from('partners')
       .select('code, name, email, balance_ore')
@@ -43,6 +51,8 @@ export default async function handler(req, res) {
     const { error: payoutError } = await supabase.from('payouts').insert({
       partner_code: partner.code,
       amount_ore: partner.balance_ore,
+      payment_method: paymentMethod,
+      payment_details: paymentDetails,
       status: 'pending'
     });
     if (payoutError) throw payoutError;
@@ -57,11 +67,12 @@ export default async function handler(req, res) {
     if (resetError) throw resetError;
 
     try {
+      const methodLabel = paymentMethod === 'vipps' ? 'Vipps' : 'Bankkonto';
       await resend.emails.send({
         from: 'LeaveAReview partnerprogram <post@din-verifiserte-domene.no>',
         to: process.env.CONTACT_EMAIL,
         subject: 'Ny utbetalingsforespørsel fra partner',
-        text: `${partner.name} (${partner.email}, kode: ${partner.code}) har bedt om utbetaling av ${(partner.balance_ore / 100).toFixed(2)} kr.`
+        text: `${partner.name} (${partner.email}, kode: ${partner.code}) har bedt om utbetaling av ${(partner.balance_ore / 100).toFixed(2)} kr.\n\nBetalingsmåte: ${methodLabel}\nNummer: ${paymentDetails}`
       });
     } catch (emailErr) {
       console.error('Kunne ikke sende varsel-e-post om utbetaling:', emailErr);

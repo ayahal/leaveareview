@@ -19,6 +19,8 @@ create table if not exists payouts (
   id uuid primary key default gen_random_uuid(),
   partner_code text not null references partners(code),
   amount_ore integer not null,
+  payment_method text,                            -- 'vipps' eller 'bank'
+  payment_details text,                           -- vipps-/telefonnummer, eller kontonummer
   status text not null default 'pending',         -- 'pending' eller 'paid'
   requested_at timestamptz not null default now(),
   paid_at timestamptz

@@ -10,8 +10,23 @@ document.addEventListener('DOMContentLoaded', function () {
   var logoutBtn = document.getElementById('logoutBtn');
   var payoutBtn = document.getElementById('payoutBtn');
   var payoutMsg = document.getElementById('payoutMsg');
+  var payoutFormWrap = document.getElementById('payoutFormWrap');
+  var payoutSubmitBtn = document.getElementById('payoutSubmitBtn');
+  var payoutDetails = document.getElementById('payoutDetails');
+  var payoutDetailsLabel = document.getElementById('payoutDetailsLabel');
+  var payoutHistoryWrap = document.getElementById('payoutHistoryWrap');
+  var payoutHistoryList = document.getElementById('payoutHistoryList');
   var refLinkOutput = document.getElementById('refLinkOutput');
   var copyRefBtn = document.getElementById('copyRefBtn');
+
+  var payoutMethodRadios = document.querySelectorAll('input[name="payoutMethod"]');
+  for (var pi = 0; pi < payoutMethodRadios.length; pi++) {
+    payoutMethodRadios[pi].addEventListener('change', function () {
+      var isVipps = document.querySelector('input[name="payoutMethod"]:checked').value === 'vipps';
+      payoutDetailsLabel.textContent = isVipps ? 'Vipps-/telefonnummer' : 'Kontonummer';
+      payoutDetails.placeholder = isVipps ? '900 00 000' : '1234.56.78903';
+    });
+  }
 
   function showDashboard(stats) {
     loginBox.style.display = 'none';
@@ -22,6 +37,47 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('dashBalance').textContent = LAR.formatKr(stats.balance);
     payoutBtn.style.display = stats.balance > 0 ? 'block' : 'none';
     refLinkOutput.value = window.location.origin + '/?ref=' + stats.code;
+  }
+
+  function formatDate(iso) {
+    var d = new Date(iso);
+    return d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function renderPayoutHistory(payouts) {
+    if (!payouts || payouts.length === 0) {
+      payoutHistoryWrap.style.display = 'none';
+      return;
+    }
+    payoutHistoryWrap.style.display = 'block';
+
+    var html = '';
+    for (var i = 0; i < payouts.length; i++) {
+      var p = payouts[i];
+      var methodLabel = p.paymentMethod === 'vipps' ? 'Vipps' : 'Bank';
+      var statusLabel = p.status === 'paid' ? 'Betalt' : 'Venter';
+      html += '<div class="payout-history-item">' +
+        '<div class="payout-history-info"><b>' + LAR.formatKr(p.amount) + '</b>' +
+        '<span>' + formatDate(p.requestedAt) + ' - ' + methodLabel + ' ' + p.paymentDetails + '</span></div>' +
+        '<span class="payout-status ' + p.status + '">' + statusLabel + '</span>' +
+        '</div>';
+    }
+    payoutHistoryList.innerHTML = html;
+  }
+
+  function loadPayoutHistory(token) {
+    return fetch('/api/partner-payouts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      }
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) return; // stille feil her - forstyrrer ikke resten av dashbordet
+        renderPayoutHistory(data.payouts);
+      });
   }
 
   // Henter tallene til den innloggede partneren. Bruker gjeldende
@@ -75,6 +131,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }).then(function (data) {
       if (data.error) throw new Error(data.error);
       showDashboard(data);
+      return loadPayoutHistory(currentSession.access_token);
     });
   }
 
@@ -118,9 +175,26 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
+  // Trykk på "Be om utbetaling" åpner skjemaet for betalingsinfo i
+  // stedet for å sende forespørselen med en gang.
   payoutBtn.addEventListener('click', function () {
-    payoutBtn.setAttribute('disabled', 'disabled');
-    payoutBtn.textContent = 'Sender forespørsel...';
+    payoutBtn.style.display = 'none';
+    payoutFormWrap.style.display = 'block';
+  });
+
+  payoutSubmitBtn.addEventListener('click', function () {
+    var method = document.querySelector('input[name="payoutMethod"]:checked').value;
+    var details = payoutDetails.value.trim();
+
+    if (!details) {
+      payoutMsg.style.display = 'block';
+      payoutMsg.textContent = 'Fyll inn ' + (method === 'vipps' ? 'Vipps-/telefonnummeret' : 'kontonummeret') + ' ditt.';
+      return;
+    }
+
+    payoutSubmitBtn.setAttribute('disabled', 'disabled');
+    payoutSubmitBtn.textContent = 'Sender forespørsel...';
+    payoutMsg.style.display = 'none';
 
     window.supabaseClient.auth.getSession().then(function (result) {
       var session = result.data.session;
@@ -131,7 +205,8 @@ document.addEventListener('DOMContentLoaded', function () {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + session.access_token
-        }
+        },
+        body: JSON.stringify({ paymentMethod: method, paymentDetails: details })
       }).then(function (r) { return r.json(); });
     })
       .then(function (data) {
@@ -139,14 +214,17 @@ document.addEventListener('DOMContentLoaded', function () {
         payoutMsg.style.display = 'block';
         payoutMsg.style.color = 'var(--accent)';
         payoutMsg.textContent = 'Forespørselen er sendt! Vi behandler utbetalingen manuelt og tar kontakt.';
-        payoutBtn.style.display = 'none';
+        payoutFormWrap.style.display = 'none';
+        payoutDetails.value = '';
         return loadStats();
       })
       .catch(function (err) {
         payoutMsg.style.display = 'block';
         payoutMsg.textContent = 'Kunne ikke sende forespørsel: ' + err.message;
-        payoutBtn.removeAttribute('disabled');
-        payoutBtn.textContent = 'Be om utbetaling';
+      })
+      .finally(function () {
+        payoutSubmitBtn.removeAttribute('disabled');
+        payoutSubmitBtn.textContent = 'Send utbetalingsforespørsel';
       });
   });
 
