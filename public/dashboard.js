@@ -27,18 +27,51 @@ document.addEventListener('DOMContentLoaded', function () {
   // Henter tallene til den innloggede partneren. Bruker gjeldende
   // Supabase-økt (JWT) for å bevise hvem som spør - ikke noe skrevet inn
   // manuelt i et skjema.
+  //
+  // Selvreparerende: hvis kontoen finnes (innlogging gikk bra) men
+  // mangler en partnerkode - f.eks. fordi noen ble avbrutt midt i
+  // registreringen av en gammel utgave av dette skjemaet - opprettes
+  // koden her i stedet for å bare vise en feilmelding.
   function loadStats() {
+    var currentSession;
     return window.supabaseClient.auth.getSession().then(function (result) {
-      var session = result.data.session;
-      if (!session) throw new Error('not-logged-in');
+      currentSession = result.data.session;
+      if (!currentSession) throw new Error('not-logged-in');
 
       return fetch('/api/partner-stats', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + session.access_token
+          'Authorization': 'Bearer ' + currentSession.access_token
         }
       }).then(function (r) { return r.json(); });
+    }).then(function (data) {
+      if (data.error) {
+        if (data.error.indexOf('Fant ingen partnerkode') !== -1) {
+          // Selvreparasjon: opprett koden nå, så prøv én gang til.
+          return fetch('/api/create-partner', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + currentSession.access_token
+            },
+            body: JSON.stringify({ name: '' })
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (createData) {
+              if (createData.error) throw new Error(createData.error);
+              return fetch('/api/partner-stats', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer ' + currentSession.access_token
+                }
+              }).then(function (r) { return r.json(); });
+            });
+        }
+        throw new Error(data.error);
+      }
+      return data;
     }).then(function (data) {
       if (data.error) throw new Error(data.error);
       showDashboard(data);

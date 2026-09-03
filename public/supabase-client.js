@@ -10,7 +10,7 @@
 // Settings -> API -> "Project URL" og "anon/public"-nøkkelen
 // ("Publishable key" i det nyeste Supabase-grensesnittet).
 
-const SUPABASE_URL = 'https://uilsjmvchtmzjhdrjcro.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_zPLWM2BJkohI9EaHN7jBMA_KjvdS9Zc';
+const SUPABASE_URL = 'https://xxxxxxxxxxxxxxxxxxxx.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_xxxxxxxxxxxxxxxxxxxxxxxx';
 
 window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
