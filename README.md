@@ -18,7 +18,11 @@ nettleseren.
   og sender dem videre til deres e-post via Resend.
 - `api/create-partner.js`, `api/partner-stats.js`, `api/request-payout.js`
   - registrerer partnere, henter salgsstatistikk til dashbordet, og
-  håndterer utbetalingsforespørsler. Lagrer i Supabase (se steg 9).
+  håndterer utbetalingsforespørsler. Identifiserer partneren via en ekte
+  innlogget konto (Supabase Auth), ikke via e-post skrevet i et skjema.
+  Lagrer i Supabase (se steg 9).
+- `public/supabase-client.js` - kobler nettsiden til Supabase Auth for
+  ekte pålogging (e-post + passord) på partnersiden og i dashbordet.
 - Nettsiden er nå delt opp i fire egne sider i `public/`, som deler samme
   utseende (`styles.css`) og handlekurv (`main.js`, lagret i nettleserens
   localStorage så den følger med mellom sidene):
@@ -94,29 +98,43 @@ Fram til domenet er verifisert kan dere teste med avsenderadressen
 
 ### 9. Sett opp partnerdashbordet (Supabase)
 Referral-lenker, salg og saldo for partnerprogrammet lagres nå i en ekte
-database - **Supabase** (gratis å starte med):
+database - **Supabase** (gratis å starte med), med ekte pålogging
+(e-post + passord) for partnerne via **Supabase Auth**:
 
 1. Opprett konto på supabase.com → **New project**
 2. Når prosjektet er klart: gå til **SQL Editor** i menyen til venstre
 3. Åpne `supabase-setup.sql` (ligger i denne mappen), kopier hele
    innholdet, lim det inn i SQL Editor → **Run**. Dette oppretter de to
    tabellene (`partners` og `payouts`) og en liten hjelpefunksjon.
-4. Gå til **Settings → API** i Supabase-prosjektet. Herfra trenger du to
-   verdier til Vercel sine miljøvariabler (steg 4 over):
-   - `SUPABASE_URL` (står øverst, kalles "Project URL")
-   - `SUPABASE_SERVICE_ROLE_KEY` (under "Project API keys" - bruk
-     **service_role**-nøkkelen, IKKE "anon"/"public"-nøkkelen, siden
-     serverkoden trenger full tilgang)
-5. Redeploy i Vercel
+   (Har du kjørt en eldre versjon av denne filen fra før? Kjør i så fall
+   også `supabase-migration-accounts.sql` for å legge til konto-kobling.)
+4. Gå til **Settings → API** i Supabase-prosjektet. Herfra trenger du tre
+   verdier:
+   - `SUPABASE_URL` ("Project URL")
+   - `SUPABASE_SERVICE_ROLE_KEY` (**service_role**/"Secret key" -
+     legges inn i Vercel sine miljøvariabler, steg 4 over. ALDRI i noen
+     fil som havner på GitHub)
+   - `anon`/"Publishable key" (denne er trygg å ha i selve koden - se
+     neste steg)
+5. Åpne `public/supabase-client.js` og bytt ut de to placeholder-verdiene
+   øverst med `SUPABASE_URL` og `anon`/"Publishable key" fra forrige
+   steg. Denne filen lastes ned til alle besøkendes nettleser, så bruk
+   ALDRI service_role-nøkkelen her - kun URL-en og anon-nøkkelen, som
+   begge er laget for å være offentlige.
+6. Legg `SUPABASE_URL` og `SUPABASE_SERVICE_ROLE_KEY` inn i Vercel sine
+   miljøvariabler (steg 4 lenger opp) → Redeploy
 
-Etter dette vil:
-- "Lag min referral-lenke" på partnersiden faktisk opprette en rad i
-  `partners`-tabellen
-- Webhooken automatisk kreditere riktig partner med provisjon
+Etter dette:
+- **partner.html** lar noen opprette en ekte konto (e-post + passord via
+  Supabase Auth) og få sin egen referral-kode. Én konto kan aldri få mer
+  enn én kode.
+- **dashboard.html** lar partnere logge inn med den kontoen når som
+  helst, fra hvilken som helst enhet, og økten holder seg innlogget
+  automatisk (Supabase fornyer den i bakgrunnen) - ikke bare "husket" i
+  én nettleser slik den forrige versjonen gjorde.
+- Webhooken krediterer automatisk riktig partner med provisjon
   (`COMMISSION_RATE` i `stripe-webhook.js` - satt til 20% som
   plassholder, endre til riktig sats der)
-- Partnere kunne logge inn på `dashboard.html` med koden og e-posten sin
-  for å se salg og saldo, og trykke "Be om utbetaling"
 
 **Viktig om utbetaling:** "Be om utbetaling" overfører IKKE penger
 automatisk - den lagrer en forespørsel i `payouts`-tabellen og sender dere

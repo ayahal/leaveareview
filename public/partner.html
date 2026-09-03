@@ -66,7 +66,7 @@
       <div class="step-card">
         <div class="stamp"><span>01</span></div>
         <h3>Lag lenken din</h3>
-        <p>Fyll ut navn og e-post under, så genererer vi en unik lenke til deg med en gang - ingen godkjenning å vente på.</p>
+        <p>Opprett en konto med navn, e-post og passord under, så genererer vi en unik lenke til deg med en gang - ingen godkjenning å vente på.</p>
       </div>
       <div class="step-card">
         <div class="stamp"><span>02</span></div>
@@ -82,6 +82,7 @@
 
     <div class="partner-box" style="margin-top:56px;">
       <div id="partnerFormWrap">
+        <h4 class="checkout-subheading" style="margin-top:0;">Opprett partnerkonto</h4>
         <div class="form-row">
           <div>
             <label for="pf-name">Navn</label>
@@ -92,7 +93,12 @@
             <input id="pf-email" type="email" placeholder="ola@dinbedrift.no">
           </div>
         </div>
-        <button type="button" class="btn btn-primary" id="generateRefBtn">Lag min referral-lenke</button>
+        <div class="full-row">
+          <label for="pf-password">Passord</label>
+          <input id="pf-password" type="password" placeholder="Minst 6 tegn">
+        </div>
+        <button type="button" class="btn btn-primary" id="generateRefBtn">Opprett konto og lag lenke</button>
+        <p class="checkout-empty-sub" style="margin-top:12px;">Har du allerede konto? <a href="dashboard.html" style="color:var(--accent);">Logg inn i dashbordet</a> for å se lenken din igjen.</p>
         <p class="referral-note" id="partnerError" style="display:none; color:var(--accent);"></p>
       </div>
 
@@ -102,12 +108,8 @@
           <input type="text" id="refLinkOutput" readonly>
           <button type="button" class="btn btn-ghost" id="copyRefBtn">Kopier</button>
         </div>
-        <div class="partner-stats">
-          <div class="partner-stat"><b id="statClicks">0</b><span>Klikk via lenken</span></div>
-          <div class="partner-stat"><b id="statOrders">0</b><span>Bestillinger</span></div>
-          <div class="partner-stat"><b id="statEarnings">0 kr</b><span>Opptjent provisjon</span></div>
-        </div>
-        <p class="partner-note">Statistikken oppdateres etter hvert som bestillinger kommer inn via lenken din. Følg med i <a href="dashboard.html" style="color:var(--accent);">partnerdashbordet</a> ditt.</p>
+        <p class="partner-note">Se salg og saldo når som helst i <a href="dashboard.html" style="color:var(--accent);">partnerdashbordet</a> ditt.</p>
+
       </div>
     </div>
   </div>
@@ -130,6 +132,8 @@
   </div>
 </footer>
 
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="supabase-client.js"></script>
 <script src="main.js"></script>
 <script src="partner.js"></script>
 </body>

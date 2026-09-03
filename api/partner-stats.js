@@ -1,36 +1,33 @@
 // api/partner-stats.js
 //
-// Kalles fra dashboard.html når en partner "logger inn" med koden og
-// e-posten sin. Dette er en enkel oppslags-sjekk, ikke ekte passordpålogging
-// - koden fungerer omtrent som et passord siden den er unik og ikke
-// gjettbar, men vurder ekte autentisering (f.eks. Supabase Auth) hvis
-// partnerprogrammet vokser og pengesummene blir større.
+// Kalles fra dashboard.html for å hente den innloggede partnerens tall.
+// Identifiserer partneren via JWT-en fra Supabase Auth (Authorization-
+// headeren), ikke via kode+e-post sendt i forespørselen.
 
 import { supabase } from './_lib/supabase.js';
+import { getAuthedUser } from './_lib/auth.js';
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'Kun POST er tillatt' });
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    res.setHeader('Allow', 'GET, POST');
+    return res.status(405).json({ error: 'Metode ikke tillatt' });
   }
 
   try {
-    const { code, email } = req.body;
-
-    if (!code || !email) {
-      return res.status(400).json({ error: 'Mangler kode eller e-post' });
+    const user = await getAuthedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Du må være logget inn.' });
     }
 
     const { data, error } = await supabase
       .from('partners')
       .select('code, name, email, balance_ore, total_sales_ore, total_orders')
-      .eq('code', code.trim())
-      .eq('email', email.trim().toLowerCase())
+      .eq('user_id', user.id)
       .maybeSingle();
 
     if (error) throw error;
     if (!data) {
-      return res.status(404).json({ error: 'Fant ingen partner med denne koden og e-posten' });
+      return res.status(404).json({ error: 'Fant ingen partnerkode knyttet til denne kontoen.' });
     }
 
     return res.status(200).json({

@@ -6,6 +6,7 @@
 
 create table if not exists partners (
   code text primary key,
+  user_id uuid references auth.users(id) unique,  -- ekte konto (Supabase Auth) knyttet til denne partneren
   name text not null,
   email text not null,
   balance_ore integer not null default 0,        -- opptjent provisjon, ikke utbetalt ennå (i øre)

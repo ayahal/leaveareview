@@ -1,5 +1,5 @@
 // partner.js - kun for partnersiden (partner.html).
-// Krever at main.js er lastet inn FØR denne filen.
+// Krever main.js, supabase-client.js og Supabase-CDN-scriptet lastet inn FØR denne filen.
 
 document.addEventListener('DOMContentLoaded', function () {
 
@@ -8,47 +8,68 @@ document.addEventListener('DOMContentLoaded', function () {
   var refLinkOutput = document.getElementById('refLinkOutput');
   var copyRefBtn = document.getElementById('copyRefBtn');
   var partnerError = document.getElementById('partnerError');
+  var partnerFormWrap = document.getElementById('partnerFormWrap');
+
+  function showError(msg) {
+    if (!partnerError) return;
+    partnerError.style.display = 'block';
+    partnerError.textContent = msg;
+  }
 
   generateRefBtn.addEventListener('click', function () {
     var name = document.getElementById('pf-name').value.trim();
     var email = document.getElementById('pf-email').value.trim();
+    var password = document.getElementById('pf-password').value;
 
-    if (!email) {
-      if (partnerError) {
-        partnerError.style.display = 'block';
-        partnerError.textContent = 'Skriv inn e-posten din først.';
-      }
+    if (!email || !password) {
+      showError('Fyll ut e-post og passord.');
+      return;
+    }
+    if (password.length < 6) {
+      showError('Passordet må være minst 6 tegn.');
       return;
     }
 
     var originalText = generateRefBtn.textContent;
     generateRefBtn.setAttribute('disabled', 'disabled');
-    generateRefBtn.textContent = 'Lager lenke...';
+    generateRefBtn.textContent = 'Oppretter konto...';
     if (partnerError) partnerError.style.display = 'none';
 
-    fetch('/api/create-partner', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name, email: email })
-    })
-      .then(function (r) { return r.json(); })
+    // Steg 1: opprett en ekte konto (e-post + passord) via Supabase Auth.
+    // Dette er det som gjør at partneren kan logge inn på nytt senere fra
+    // hvilken som helst enhet, i stedet for at vi "husker" noe lokalt.
+    window.supabaseClient.auth.signUp({ email: email, password: password })
+      .then(function (result) {
+        if (result.error) throw result.error;
+
+        var session = result.data.session;
+        if (!session) {
+          // Skjer hvis prosjektet krever e-postbekreftelse før innlogging.
+          throw new Error('Sjekk e-posten din og bekreft kontoen før du fortsetter.');
+        }
+
+        // Steg 2: be serveren opprette (eller hente eksisterende)
+        // partnerkode knyttet til denne kontoen - kontoen er nå beviset
+        // på hvem man er, ikke en e-post skrevet i et skjema.
+        return fetch('/api/create-partner', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + session.access_token
+          },
+          body: JSON.stringify({ name: name })
+        }).then(function (r) { return r.json(); });
+      })
       .then(function (data) {
         if (data.error) throw new Error(data.error);
 
-        // Referral-lenken peker til forsiden - det er der en ny besøkende
-        // skal lande, ikke til denne partnersiden.
-               var link = window.location.origin + '/?ref=' + data.code;
+        var link = window.location.origin + '/?ref=' + data.code;
         refLinkOutput.value = link;
+        partnerFormWrap.style.display = 'none';
         partnerResult.style.display = 'block';
-        document.getElementById('statClicks').textContent = '0';
-        document.getElementById('statOrders').textContent = '0';
-        document.getElementById('statEarnings').textContent = '0 kr';
       })
       .catch(function (err) {
-        if (partnerError) {
-          partnerError.style.display = 'block';
-          partnerError.textContent = 'Kunne ikke lage lenke: ' + err.message;
-        }
+        showError(err.message || 'Noe gikk galt. Prøv igjen.');
       })
       .finally(function () {
         generateRefBtn.removeAttribute('disabled');

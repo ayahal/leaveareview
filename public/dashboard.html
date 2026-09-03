@@ -63,20 +63,26 @@
     <div class="checkout-box" id="loginBox">
       <h4 class="checkout-subheading" style="margin-top:0;">Logg inn</h4>
       <div class="full-row">
-        <label for="db-code">Referral-kode</label>
-        <input id="db-code" type="text" placeholder="ola1234">
-      </div>
-      <div class="full-row">
         <label for="db-email">E-post</label>
         <input id="db-email" type="email" placeholder="ola@dinbedrift.no">
       </div>
+      <div class="full-row">
+        <label for="db-password">Passord</label>
+        <input id="db-password" type="password" placeholder="Passordet ditt">
+      </div>
       <button type="button" class="btn btn-primary" id="loginBtn" style="width:100%;">Logg inn</button>
-      <p class="checkout-empty-sub" style="margin-top:14px;">Bruk koden og e-posten du oppga da du opprettet referral-lenken din på <a href="partner.html" style="color:var(--accent);">partnersiden</a>.</p>
+      <p class="checkout-empty-sub" style="margin-top:14px;">Ny partner? <a href="partner.html" style="color:var(--accent);">Opprett konto her</a>.</p>
       <p class="referral-note" id="loginError" style="display:none; color:var(--accent);"></p>
     </div>
 
     <div class="checkout-box" id="dashboardBox" style="display:none;">
       <h3 class="checkout-heading" id="dashGreeting">Hei!</h3>
+
+      <label for="refLinkOutput">Din referral-lenke</label>
+      <div class="ref-link-row" style="margin-bottom:24px;">
+        <input type="text" id="refLinkOutput" readonly>
+        <button type="button" class="btn btn-ghost" id="copyRefBtn">Kopier</button>
+      </div>
 
       <div class="partner-stats" style="margin-top:0;">
         <div class="partner-stat"><b id="dashOrders">0</b><span>Bestillinger</span></div>
@@ -109,6 +115,8 @@
   </div>
 </footer>
 
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="supabase-client.js"></script>
 <script src="main.js"></script>
 <script src="dashboard.js"></script>
 </body>

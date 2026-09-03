@@ -1,10 +1,12 @@
 // api/create-partner.js
 //
-// Kalles fra partner.html når noen trykker "Lag min referral-lenke".
-// Oppretter en rad i "partners"-tabellen i Supabase, slik at koden faktisk
-// finnes et sted og kan slås opp igjen senere i partnerdashbordet.
+// Kalles fra partner.html rett etter at noen har opprettet en ekte konto
+// (e-post + passord via Supabase Auth). Oppretter partnerkoden deres og
+// kobler den til den innloggede brukeren - én konto kan aldri få mer enn
+// én kode, siden user_id er unikt i partners-tabellen.
 
 import { supabase } from './_lib/supabase.js';
+import { getAuthedUser } from './_lib/auth.js';
 
 function slugify(str) {
   return str.toLowerCase()
@@ -20,26 +22,41 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { name, email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: 'Mangler e-post' });
+    const user = await getAuthedUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Du må være logget inn.' });
     }
 
+    // Har denne kontoen allerede en kode? Returner den i stedet for å lage
+    // en ny - dette er det som faktisk hindrer at samme person (nå
+    // identifisert ved ekte innlogget konto, ikke bare en e-post skrevet i
+    // et skjema) kan lage flere koder.
+    const { data: existing } = await supabase
+      .from('partners')
+      .select('code')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existing) {
+      return res.status(200).json({ code: existing.code });
+    }
+
+    const { name } = req.body;
     var base = slugify(name || 'partner') || 'partner';
     var code = base + Math.floor(1000 + Math.random() * 9000);
 
-    // Svært liten sjanse for kollisjon, men prøv en gang til med nytt
-    // tilfeldig tall hvis koden allerede finnes.
-    let { data: existing } = await supabase.from('partners').select('code').eq('code', code).maybeSingle();
-    if (existing) {
+    // Svært liten sjanse for kollisjon på selve koden, men prøv en gang
+    // til med nytt tilfeldig tall hvis den allerede er tatt.
+    let { data: codeTaken } = await supabase.from('partners').select('code').eq('code', code).maybeSingle();
+    if (codeTaken) {
       code = base + Math.floor(1000 + Math.random() * 9000);
     }
 
     const { error } = await supabase.from('partners').insert({
       code: code,
+      user_id: user.id,
       name: name || '',
-      email: email
+      email: user.email
     });
 
     if (error) throw error;
