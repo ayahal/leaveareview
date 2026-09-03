@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Referral-lenken peker til forsiden - det er der en ny besøkende
         // skal lande, ikke til denne partnersiden.
-        var link = window.location.origin + '/index.html?ref=' + data.code;
+               var link = window.location.origin + '/?ref=' + data.code;
         refLinkOutput.value = link;
         partnerResult.style.display = 'block';
         document.getElementById('statClicks').textContent = '0';
