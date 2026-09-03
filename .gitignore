@@ -1,0 +1,13 @@
+# ALDRI last opp denne filen - den inneholder ekte hemmeligheter
+.env
+.env.local
+.env*.local
+
+# Node
+node_modules/
+
+# Vercel
+.vercel
+
+# OS
+.DS_Store
