@@ -12,11 +12,21 @@ nettleseren.
   med riktig pris (regnet ut på nytt på serveren, ikke stolt på fra
   nettleseren) og sender kunden til Stripes betalingsside.
 - `api/stripe-webhook.js` - lytter etter Stripes bekreftelse på at
-  betalingen faktisk gikk gjennom.
+  betalingen faktisk gikk gjennom, og krediterer partneren sin provisjon
+  hvis bestillingen kom via en referral-lenke.
 - `api/send-message.js` - tar imot meldinger fra "Snakk med oss"-skjemaet
   og sender dem videre til deres e-post via Resend.
-- `public/index.html` (nettsiden) sin "Fullfør bestilling"-knapp og
-  "Send melding"-knapp er koblet til å kalle disse to funksjonene.
+- `api/create-partner.js`, `api/partner-stats.js`, `api/request-payout.js`
+  - registrerer partnere, henter salgsstatistikk til dashbordet, og
+  håndterer utbetalingsforespørsler. Lagrer i Supabase (se steg 9).
+- Nettsiden er nå delt opp i fire egne sider i `public/`, som deler samme
+  utseende (`styles.css`) og handlekurv (`main.js`, lagret i nettleserens
+  localStorage så den følger med mellom sidene):
+  - `index.html` - forsiden (alt fra hero til FAQ, pakkevalg og "Snakk med oss")
+  - `checkout.html` - egen kasseside med kontaktskjema og betaling
+  - `partner.html` - egen side for partnerprogrammet, med referral-lenke-generator
+  - `dashboard.html` - partnerdashbord: logg inn med kode + e-post, se
+    salg og saldo, be om utbetaling
 
 ## Det du selv må gjøre, steg for steg
 
@@ -82,21 +92,53 @@ til dere som e-post (`api/send-message.js`):
 Fram til domenet er verifisert kan dere teste med avsenderadressen
 `onboarding@resend.dev`, som Resend tilbyr uten videre oppsett.
 
-### 9. Det som IKKE er satt opp ennå, men som du trenger før dere går live
-- **En database** for å faktisk lagre bestillingene (Supabase er en enkel,
-  gratis start). Uten dette forsvinner bestillingsdataen når webhooken er
-  ferdig - dere har ingen liste over hva som er solgt.
-- **Referral-utbetaling**: nettsiden sender `referralCode` med til Stripe
-  som metadata, men ingenting krediterer partneren automatisk ennå - det
-  krever samme database som over, pluss egen logikk for å regne ut og
-  faktisk utbetale provisjon (Stripe kan gjøre utbetalinger via **Stripe
-  Connect** hvis partnerne skal få pengene direkte).
+### 9. Sett opp partnerdashbordet (Supabase)
+Referral-lenker, salg og saldo for partnerprogrammet lagres nå i en ekte
+database - **Supabase** (gratis å starte med):
+
+1. Opprett konto på supabase.com → **New project**
+2. Når prosjektet er klart: gå til **SQL Editor** i menyen til venstre
+3. Åpne `supabase-setup.sql` (ligger i denne mappen), kopier hele
+   innholdet, lim det inn i SQL Editor → **Run**. Dette oppretter de to
+   tabellene (`partners` og `payouts`) og en liten hjelpefunksjon.
+4. Gå til **Settings → API** i Supabase-prosjektet. Herfra trenger du to
+   verdier til Vercel sine miljøvariabler (steg 4 over):
+   - `SUPABASE_URL` (står øverst, kalles "Project URL")
+   - `SUPABASE_SERVICE_ROLE_KEY` (under "Project API keys" - bruk
+     **service_role**-nøkkelen, IKKE "anon"/"public"-nøkkelen, siden
+     serverkoden trenger full tilgang)
+5. Redeploy i Vercel
+
+Etter dette vil:
+- "Lag min referral-lenke" på partnersiden faktisk opprette en rad i
+  `partners`-tabellen
+- Webhooken automatisk kreditere riktig partner med provisjon
+  (`COMMISSION_RATE` i `stripe-webhook.js` - satt til 20% som
+  plassholder, endre til riktig sats der)
+- Partnere kunne logge inn på `dashboard.html` med koden og e-posten sin
+  for å se salg og saldo, og trykke "Be om utbetaling"
+
+**Viktig om utbetaling:** "Be om utbetaling" overfører IKKE penger
+automatisk - den lagrer en forespørsel i `payouts`-tabellen og sender dere
+en e-post. Dere må fortsatt betale ut provisjonen manuelt (Vipps/bank) og
+selv markere raden som betalt i Supabase (under **Table Editor →
+payouts**, sett `status` til `paid`). Automatisk utbetaling er mulig med
+**Stripe Connect**, men krever at hver partner onboardes med egen konto
+der - en god del mer arbeid enn dette oppsettet.
+
+### 10. Det som IKKE er satt opp ennå, men som du trenger før dere går live
+- **Bestillingslagring**: selve varebestillingen (hvilke kort, farge,
+  leveringsadresse) lagres fortsatt ikke i noen tabell - kun
+  partner-provisjonen gjør det nå. Legg gjerne til en `orders`-tabell etter
+  samme mønster som `partners`, og skriv til den i webhooken.
+- **Kvitteringsepost til kunden** er heller ikke satt opp ennå - kun
+  varsel-eposter til dere selv (kontaktskjema og utbetalingsforespørsler).
 - **Juridisk**: kjøpsvilkårene er nå lagt inn som tekst direkte på
   nettsiden (se `#vilkar`-seksjonen), men bør leses gjennom av noen med
   juridisk kompetanse før dere tar imot ekte betalinger fra forbrukere i
   Norge - særlig angrerett- og personvernpunktene.
 
-### 10. Test før dere går live
+### 11. Test før dere går live
 Bruk Stripes testkort (4242 4242 4242 4242, hvilken som helst fremtidig
 dato/CVC) i testmodus. Bytt `STRIPE_SECRET_KEY` til `sk_live_...` og
 `STRIPE_WEBHOOK_SECRET` til live-versjonen først når dere er klare til å

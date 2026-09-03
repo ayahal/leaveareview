@@ -9,8 +9,12 @@
 // at dette skal kalles i det hele tatt.
 
 import Stripe from 'stripe';
+import { supabase } from './_lib/supabase.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Provisjonssats for partnerprogrammet - PLASSHOLDER, sett riktig verdi her.
+const COMMISSION_RATE = 0.20;
 
 // Stripe krever den RÅ (uparserte) HTTP-bodyen for å kunne verifisere at
 // forespørselen faktisk kommer fra Stripe og ikke er forfalsket av noen
@@ -55,25 +59,35 @@ export default async function handler(req, res) {
     const session = event.data.object;
 
     // ------------------------------------------------------------------
-    // HER er stedet du kobler på det som gjør bestillingen "ekte":
+    // Krediter partneren hvis bestillingen kom via en referral-lenke.
+    // Bruker en Postgres-funksjon (increment_partner_stats) i stedet for
+    // en vanlig UPDATE, slik at det er trygt selv om to salg for samme
+    // partner skulle skje samtidig (se supabase-setup.sql).
+    // ------------------------------------------------------------------
+    const referralCode = session.metadata?.referralCode;
+    if (referralCode) {
+      const saleOre = session.amount_total; // Stripe oppgir beløp i øre
+      const commissionOre = Math.round(saleOre * COMMISSION_RATE);
+
+      const { error } = await supabase.rpc('increment_partner_stats', {
+        p_code: referralCode,
+        p_sale_ore: saleOre,
+        p_commission_ore: commissionOre
+      });
+
+      if (error) {
+        console.error('Kunne ikke kreditere partner:', referralCode, error);
+      } else {
+        console.log('Krediterte partner', referralCode, 'med', commissionOre / 100, 'kr');
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // Det som fortsatt IKKE er satt opp her (se README for hvor):
     //
-    // 1. Lagre bestillingen i en database (f.eks. Supabase/Postgres):
-    //      await db.orders.insert({
-    //        stripeSessionId: session.id,
-    //        email: session.customer_details.email,
-    //        amountTotal: session.amount_total,
-    //        metadata: session.metadata,
-    //      });
-    //
-    // 2. Send kvitteringsepost (f.eks. med Resend eller Postmark):
-    //      await sendReceiptEmail(session.customer_details.email, session);
-    //
-    // 3. Hvis bestillingen kom via en partner-lenke, krediter partneren:
-    //      if (session.metadata.referralCode) {
-    //        await db.referrals.incrementSales(session.metadata.referralCode, session.amount_total);
-    //      }
-    //
-    // Ingen av disse tre finnes ennå - se README for hvor du setter dem opp.
+    // 1. Lagre selve bestillingen (varer, leveringsadresse) i en egen
+    //    tabell, slik at dere har en liste over hva som skal sendes ut.
+    // 2. Send kvitteringsepost til kunden (f.eks. med Resend).
     // ------------------------------------------------------------------
 
     console.log(

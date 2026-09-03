@@ -89,8 +89,8 @@ export default async function handler(req, res) {
         city: customer.city || '',
       },
 
-      success_url: `${process.env.SITE_URL}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.SITE_URL}/?checkout=cancelled`,
+      success_url: `${process.env.SITE_URL}/checkout.html?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.SITE_URL}/checkout.html?checkout=cancelled`,
     });
 
     return res.status(200).json({ url: session.url });
